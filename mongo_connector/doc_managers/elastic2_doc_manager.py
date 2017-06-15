@@ -64,7 +64,7 @@ wrap_exceptions = exception_wrapper({
 
 LOG = logging.getLogger(__name__)
 
-DEFAULT_SEND_INTERVAL = 5
+DEFAULT_SEND_INTERVAL = 0.2
 """The default interval in seconds to send buffered operations."""
 
 DEFAULT_AWS_REGION = 'us-east-1'
@@ -113,7 +113,7 @@ class AutoCommiter(threading.Thread):
       - `sleep_interval`: Number of seconds to sleep.
     """
     def __init__(self, docman, send_interval, commit_interval,
-                 sleep_interval=1):
+                 sleep_interval=0.2):
         super(AutoCommiter, self).__init__()
         self._docman = docman
         # Change `None` intervals to 0
@@ -148,6 +148,7 @@ class AutoCommiter(threading.Thread):
             if self._should_auto_send:
                 if last_send > self._send_interval:
                     self._docman.send_buffered_operations()
+                    #LOG.info("send buffered operations......")
                     last_send = 0
             time.sleep(self._sleep_interval)
             last_send += self._sleep_interval
@@ -482,6 +483,7 @@ class DocManager(DocManagerBase):
                 action_buffer = self.BulkBuffer.get_buffer()
                 if action_buffer:
                     successes, errors = bulk(self.elastic, action_buffer)
+		    self.elastic.indices.refresh()
                     LOG.debug("Bulk request finished, successfully sent %d "
                               "operations", successes)
                     if errors:
@@ -675,7 +677,7 @@ class BulkBuffer(object):
 
     def bulk_index(self, action, meta_action):
         self.action_buffer.append(action)
-        self.action_buffer.append(meta_action)
+        #self.action_buffer.append(meta_action)
 
     def clean_up(self):
         """Do clean-up before returning buffer"""
@@ -693,5 +695,5 @@ class BulkBuffer(object):
             self.update_sources()
 
         ES_buffer = self.action_buffer
-        self.clean_up()
+	self.clean_up()
         return ES_buffer
